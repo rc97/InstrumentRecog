@@ -1,0 +1,6 @@
+libsoundtouch
+numpy
+scipy
+matplotlib
+pydub
+avcodec (apt-get this)

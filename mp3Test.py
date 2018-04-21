@@ -18,9 +18,7 @@ print('time', len(vSamples))
 plt.plot(list(range(len(vSamples))), vSamples)
 plt.show()
 
-print(fft.rfft)
-
-vfft = fft.rfft(vSamples, n=N_FFT)
+vfft = fft.rfft(vSamples, n=N_FFT)[:8192]
 print('frequency', len(vfft))
 plt.plot(list(range(len(vfft))), np.absolute(vfft))
 plt.show()
@@ -37,9 +35,7 @@ print('time', len(fSamples))
 plt.plot(list(range(len(fSamples))), fSamples)
 plt.show()
 
-print(fft.rfft)
-
-ffft = fft.rfft(fSamples, n=N_FFT)
+ffft = fft.rfft(fSamples, n=N_FFT)[:8192]
 print('frequency', len(ffft))
 plt.plot(list(range(len(ffft))), np.absolute(ffft))
 plt.show()
