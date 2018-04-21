@@ -3,4 +3,5 @@ numpy
 scipy
 matplotlib
 pydub
-avcodec (apt-get this)
+libavcodec-extra (apt-get this)
+libav-tools (apt-get this too)
