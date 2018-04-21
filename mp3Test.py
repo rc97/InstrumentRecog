@@ -15,13 +15,15 @@ vRawData = vSound.raw_data
 
 vSamples = np.fromstring(vRawData, dtype=np.int16)
 print('time', len(vSamples))
+plt.subplot(221)
 plt.plot(list(range(len(vSamples))), vSamples)
-plt.show()
+# plt.show()
 
 vfft = fft.rfft(vSamples, n=N_FFT)[:8192]
 print('frequency', len(vfft))
+plt.subplot(222)
 plt.plot(list(range(len(vfft))), np.absolute(vfft))
-plt.show()
+# plt.show()
 
 fSound = AudioSegment.from_mp3("f1.mp3")
 
@@ -32,10 +34,12 @@ fRawData = fSound.raw_data
 
 fSamples = np.fromstring(fRawData, dtype=np.int16)
 print('time', len(fSamples))
+plt.subplot(223)
 plt.plot(list(range(len(fSamples))), fSamples)
-plt.show()
+# plt.show()
 
 ffft = fft.rfft(fSamples, n=N_FFT)[:8192]
 print('frequency', len(ffft))
+plt.subplot(224)
 plt.plot(list(range(len(ffft))), np.absolute(ffft))
 plt.show()
