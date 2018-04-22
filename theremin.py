@@ -1,20 +1,17 @@
-import sys, time, math, array, wave
+import sys, time, math, array, wave, threading, Queue
 import matplotlib
 import numpy as np
 import pyaudio as pa
 # from pydub import AudioSegment
 from matplotlib import pyplot as plt
-from multiprocessing import Process, Pipe
-
-from ProcessPlotter import ProcessPlotter
+import requests
 
 sys.path.insert(0, 'lib')
 sys.path.insert(0, 'lib/x64')
 import Leap
 
-
 VOL_LOW = 0
-VOL_HIGH = 600
+VOL_HIGH = 500
 
 BAS_LOW = -250
 BAS_HIGH = 250
@@ -29,107 +26,163 @@ FS = 96000
 
 dt = .01
 
-VIS_HIST = 20
-norm = matplotlib.colors.Normalize(vmin=0, vmax=MAX_PIT, clip=True)
-mapper = matplotlib.cm.ScalarMappable(norm=norm, cmap='plasma')
+pitch = 0
+vol = 0
 
-fig, ax = plt.subplots()
-ax.set_facecolor('black')
-ax.set_ylim(0, VOL_HIGH+50)
-plt.show(block=False)
+IP = '192.168.43.155'
 
-ind = np.arange(1, 1+VIS_HIST)
-pitchHist = np.zeros(VIS_HIST) # values from 0 to 880
-volHist = np.zeros(VIS_HIST)
-bars = plt.bar(ind, volHist)
+BASE_URL = 'http://' + IP + ':8090'
+BASS_MIN = -9
+BASS_MAX = 0
+VOL_MAX = 100
+VOL_MIN = 0
 
 
+def setVolume(vol):
+	vol = VOL_MIN if vol < VOL_MIN else VOL_MAX if vol > VOL_MAX else vol
+	r = requests.post(BASE_URL+'/volume', '<volume>%s</volume>' % vol)
+
+def setBass(bass):
+	bass = BASS_MIN if bass < BASS_MIN else BASS_MAX if bass > BASS_MAX else bass
+	r = requests.post(BASE_URL+'/bass', '<bass>%s</bass>' % bass)
 def posInRange(pos, low, high):
 	val = (pos - low) / (high - low)
 	return 0 if val < 0 else 1 if val > 1 else val
 
-def main():
+class leftThread(threading.Thread):
+	def __init__(self, threadID, name, counter):
+		threading.Thread.__init__(self)
+		self.threadID = threadID
+		self.name = name
+		self.counter = counter
+		self.controller = Leap.Controller()
+	def run(self):
+		while(1):
+			frame = self.controller.frame()
+			mvol = 0
+			bass = 0
 
-	plot_pipe, plotter_pipe = Pipe()
-	plotter = ProcessPlotter()
-	plot_process = Process(
-		target=plotter,
-		args=(plotter_pipe,)
-	)
+			# Get hands
+			for hand in frame.hands:
+				if hand.is_left:
+					pos = hand.palm_position
+					x = pos[0]
+					y = pos[1]
+					z = pos[2]
+					mvol = int(10 * (posInRange(y, VOL_LOW, VOL_HIGH)))
+					setVolume(40 + mvol)
+					bass = int(9 * posInRange(z, BAS_LOW, BAS_HIGH) - 9)
+					setBass(bass)
 
-	# vSound = AudioSegment.from_mp3("v1.mp3")
-	# vRawData = vSound.raw_data
-	# vSamples = np.fromstring(vRawData, dtype=np.int16)[5000:25000]
-
-	# sd.default.samplerate = FS
-	controller = Leap.Controller()
-	p = pa.PyAudio()
-	stream = p.open(format=16,
+class leapThread(threading.Thread):
+	def __init__(self, threadID, name, counter):
+		threading.Thread.__init__(self)
+		self.threadID = threadID
+		self.name = name
+		self.counter = counter
+		self.controller = Leap.Controller()
+		p = pa.PyAudio()
+		self.stream = p.open(format=16,
 				channels=1,
-                rate=FS,
-                output=True)
-	t = 0
+				rate=FS,
+				output=True)
+	def run(self):
+		global pitch, vol
+		while(1):
+			frame = self.controller.frame()
+			pitch = 0
+			vol = 0
+			mix = 0
+			ry = 0
+			rz = 0
+
+			# Get hands
+			for hand in frame.hands:
+				if hand.is_right:
+					pos = hand.palm_position
+					x = pos[0]
+					y = pos[1]
+					z = pos[2]
+					pitch = MAX_PIT * posInRange(x, PIT_LOW, PIT_HIGH)
+					ry = posInRange(y, VOL_LOW, VOL_HIGH)
+					mix = posInRange(z, BAS_LOW, BAS_HIGH)
+					rz = posInRange(z, BAS_LOW, BAS_HIGH)
+				elif hand.is_left:
+					pos = hand.palm_position
+					x = pos[0]
+					y = pos[1]
+					z = pos[2]
+					vol = MAX_VOL * (posInRange(y, VOL_LOW, VOL_HIGH))
+
+			if pitch > 0 and vol > 0:
+				spec = [10, 25 * (rz - .5) if rz > .6 else 0, 50, 30 * (rz - .5) if rz > .6 else 0, 30 + (200*(.5-rz) if rz < .5 else 0)]
+				sumSpec = sum(spec)
+				spec = [i*1.0/sumSpec for i in spec]
+				# print(spec)
+				freq = pitch / FS * 3.14
+				ts = int(FS / pitch * 12)
+				# print(freq, ts)
+				sine = [vol * math.sin(i * freq) for i in range(ts)]
+				sine2 = [vol * math.sin(2 * i * freq) for i in range(ts)]
+				bass = [vol * math.sin(i * freq / 2) for i in range(ts)]
+				chr1 = [vol * math.sin(i * freq * 2**(-5.0/12)) for i in range(ts)]
+				chr2 = [vol * math.sin(i * freq * 2**(7.0/12)) for i in range(ts)]
+				specMix = [i*spec[2] + j*spec[4] + k*spec[0] + l*spec[1] + m*spec[3] for i, j, k, l, m in zip(sine, sine2, bass, chr1, chr2)]
+				samps = specMix
+				samps = np.array(samps, dtype=np.int8)
+				sineStr = array.array('b', samps).tostring()
+				self.stream.write(sineStr)
+
+			# print('QUEUE', pitch, vol)
+			# q.put((pitch, vol))
+
+
+def main():
+	thread1 = leapThread(1, "Thread-1", 1)
+	thread1.start()
+	thread2 = leftThread(1, "t2", 1)
+	thread2.start()
+
+	VIS_HIST = 40
+	norm = matplotlib.colors.Normalize(vmin=0, vmax=MAX_PIT, clip=True)
+	mapper = matplotlib.cm.ScalarMappable(norm=norm, cmap='plasma')
+
+	fig, ax = plt.subplots()
+	fig.patch.set_facecolor('black')
+	ax.set_facecolor('black')
+	ax.set_ylim(0, MAX_VOL+5)
+	plt.show(block=False)
+
+	ind = np.arange(1, 1+VIS_HIST)
+	pitchHist = np.zeros(VIS_HIST)
+	volHist = np.zeros(VIS_HIST)
+	bars = plt.bar(ind, volHist)
+
 	while(1):
-		frame = controller.frame()
-		pitch = 0
-		vol = 0
-		bass = 0
-		mix = 0
-		ry = 0
-		rz = 0
+		# while not q.empty():
+		# 	(pitch, vol) = q.get(True)
 
-		# Get hands
-		for hand in frame.hands:
-			if hand.is_right:
-				pos = hand.palm_position
-				x = pos[0]
-				y = pos[1]
-				z = pos[2]
-				pitch = MAX_PIT * posInRange(x, PIT_LOW, PIT_HIGH)
-				ry = posInRange(y, VOL_LOW, VOL_HIGH)
-				mix = posInRange(z, BAS_LOW, BAS_HIGH)
-				rz = posInRange(z, BAS_LOW, BAS_HIGH)
-				# print(x, y, z)
-				# print("Pitch", pitch)
-				# print("Mix", mix)
-			elif hand.is_left:
-				pos = hand.palm_position
-				x = pos[0]
-				y = pos[1]
-				z = pos[2]
-				vol = MAX_VOL * (posInRange(y, VOL_LOW, VOL_HIGH))
-				bass = posInRange(z, BAS_LOW, BAS_HIGH)
-				# print(x, y, z)
-				# print("Volume", vol)
-				# print("Bass", bass)
-				# print()
+		# print("PITCH", pitch, vol)
+		pitchHist[0:-1] = pitchHist[1:]
+		pitchHist[-1] = pitch
+		volHist[0:-1] = volHist[1:]
+		volHist[-1] = vol
+		for i in range(VIS_HIST):
+			# print(bars[i])
+			# print(volHist[i])
+			bars[i].set_height(volHist[i])
+			bars[i].set_facecolor(mapper.to_rgba(pitchHist[i]))
 
-		if pitch > 0:
-			spec = [15, 25 * (rz - .6) if rz > .6 else 0, 50 * ry - (20*(.5-rz) if rz < .5 else 0), 30 * (rz - .6) if rz > .6 else 0, 20 + (80*(.5-rz) if rz < .5 else 0)]
-			sumSpec = sum(spec)
-			spec = [i*1.0/sumSpec for i in spec]
-			print(spec)
-			freq = pitch / FS * 3.14
-			ts = int(FS / pitch * 12)
-			pause = ts * 1.0 / FS
-			print(freq, ts, pause)
-			sine = [vol*math.sin(i * freq) for i in range(ts)]
-			sine2 = [vol*math.sin(2 * i * freq) for i in range(ts)]
-			bass = [vol*math.sin(i * freq / 2) for i in range(ts)]
-			chr1 = [vol*math.sin(i * freq * 2**(-5.0/12)) for i in range(ts)]
-			chr2 = [vol*math.sin(i * freq * 2**(7.0/12)) for i in range(ts)]
-			sineBass = [i/2 + j/4 + k/4 for i, j, k in zip(sine, bass, sine2)]
-			square = [vol if i > 0 else -vol if i < 0 else 0 for i in sine]
-			mixSine = [mix * j + (1 - mix) * i for i, j in zip(sine, sine2)]
-			mixSquare = [mix/2 * j + (1 - mix/2) * i for i, j in zip(sine, square)]
-			mixChr = [i*5/12 + j/6 + k/6 + l/6 + m/12 for i, j, k, l, m in zip(sine, sine2, bass, chr1, chr2)]
-			specMix = [i*spec[2] + j*spec[4] + k*spec[0] + l*spec[1] + m*spec[3] for i, j, k, l, m in zip(sine, sine2, bass, chr1, chr2)]
-			samps = specMix
-			samps = np.array(samps, dtype=np.int8)
-			sineStr = array.array('b', samps).tostring()
-			stream.write(sineStr)
+		fig.canvas.draw_idle()
+		try:
+			fig.canvas.flush_events()
+		except NotImplementedError:
+			pass	
+		time.sleep(.01)
 
-		plot_pipe.send([pitch, vol])
+	# time.sleep(10)
+	thread1.join()
+	thread2.join()
 
 if __name__ == '__main__':
 	main()
