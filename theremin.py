@@ -115,7 +115,7 @@ class leapThread(threading.Thread):
 					vol = MAX_VOL * (posInRange(y, VOL_LOW, VOL_HIGH))
 
 			if pitch > 0 and vol > 0:
-				spec = [10, 25 * (rz - .5) if rz > .6 else 0, 50, 30 * (rz - .5) if rz > .6 else 0, 30 + (200*(.5-rz) if rz < .5 else 0)]
+				spec = [10, 25 * (rz - .5) if rz > .55 else 0, 50 + (250 * (ry-.5) if ry > .6 else 0), 30 * (rz - .5) if rz > .55 else 0, 30 + (350*(.5-rz) if rz < .5 else 0)]
 				sumSpec = sum(spec)
 				spec = [i*1.0/sumSpec for i in spec]
 				# print(spec)

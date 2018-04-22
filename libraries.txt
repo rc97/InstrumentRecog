@@ -2,6 +2,6 @@ libsoundtouch
 numpy
 scipy
 matplotlib
-pydub
+pyaudio
 libavcodec-extra (apt-get this)
 libav-tools (apt-get this too)
