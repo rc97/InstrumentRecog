@@ -17,6 +17,7 @@ class ProcessPlotter(object):
 
 		self.ax.set_facecolor('black')
 		self.ax.set_ylim(0, self.MAX_VOL+50)
+		plt.show(block=False)
 		ind = np.arange(1, 1+self.VIS_HIST)
 		self.pitchHist = np.zeros(self.VIS_HIST)
 		self.volHist = np.zeros(self.VIS_HIST)

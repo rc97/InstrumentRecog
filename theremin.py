@@ -33,15 +33,15 @@ VIS_HIST = 20
 norm = matplotlib.colors.Normalize(vmin=0, vmax=MAX_PIT, clip=True)
 mapper = matplotlib.cm.ScalarMappable(norm=norm, cmap='plasma')
 
-# fig, ax = plt.subplots()
-# ax.set_facecolor('black')
-# ax.set_ylim(0, VOL_HIGH+50)
-# plt.show(block=False)
+fig, ax = plt.subplots()
+ax.set_facecolor('black')
+ax.set_ylim(0, VOL_HIGH+50)
+plt.show(block=False)
 
-# ind = np.arange(1, 1+VIS_HIST)
-# pitchHist = np.zeros(VIS_HIST) # values from 0 to 880
-# volHist = np.zeros(VIS_HIST)
-# bars = plt.bar(ind, volHist)
+ind = np.arange(1, 1+VIS_HIST)
+pitchHist = np.zeros(VIS_HIST) # values from 0 to 880
+volHist = np.zeros(VIS_HIST)
+bars = plt.bar(ind, volHist)
 
 
 def posInRange(pos, low, high):
@@ -57,8 +57,6 @@ def main():
 		args=(plotter_pipe,)
 	)
 
-	print("started process")
-
 	# vSound = AudioSegment.from_mp3("v1.mp3")
 	# vRawData = vSound.raw_data
 	# vSamples = np.fromstring(vRawData, dtype=np.int16)[5000:25000]
@@ -72,9 +70,7 @@ def main():
                 output=True)
 	t = 0
 	while(1):
-		print("in while")
 		frame = controller.frame()
-		print(frame, frame.hands, len(frame.hands))
 		pitch = 0
 		vol = 0
 		bass = 0

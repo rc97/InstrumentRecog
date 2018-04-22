@@ -43,7 +43,6 @@ bars = plt.bar(ind, volHist)
 
 def animate(i):
 	for i in range(VIS_HIST):
-		print(bars)
 		print(bars[i])
 		print(volHist[i])
 		bars[i].set_height(volHist[i])
@@ -69,9 +68,9 @@ def main():
                 output=True)
 	t = 0
 
-	anim = animation.FuncAnimation(fig, animate, interval=2, blit=False)
+	anim = animation.FuncAnimation(fig, animate, frames=100, interval=100, blit=False)
 
-	plt.show(block=False)
+	plt.show()
 
 	
 	while(1):
