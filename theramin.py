@@ -10,7 +10,7 @@ sys.path.insert(0, 'lib/x64')
 import Leap
 
 VOL_LOW = 0
-VOL_HIGH = 600
+VOL_HIGH = 500
 
 BAS_LOW = -250
 BAS_HIGH = 250
@@ -57,7 +57,7 @@ def main():
 				channels=1,
                 rate=FS,
                 output=True)
-	t = 0
+	# t = 0
 	while(1):
 		frame = controller.frame()
 		pitch = 0
@@ -107,11 +107,11 @@ def main():
 			bass = [vol*math.sin(i * freq / 2) for i in range(ts)]
 			chr1 = [vol*math.sin(i * freq * 2**(-5.0/12)) for i in range(ts)]
 			chr2 = [vol*math.sin(i * freq * 2**(7.0/12)) for i in range(ts)]
-			sineBass = [i/2 + j/4 + k/4 for i, j, k in zip(sine, bass, sine2)]
-			square = [vol if i > 0 else -vol if i < 0 else 0 for i in sine]
-			mixSine = [mix * j + (1 - mix) * i for i, j in zip(sine, sine2)]
-			mixSquare = [mix/2 * j + (1 - mix/2) * i for i, j in zip(sine, square)]
-			mixChr = [i*5/12 + j/6 + k/6 + l/6 + m/12 for i, j, k, l, m in zip(sine, sine2, bass, chr1, chr2)]
+			# sineBass = [i/2 + j/4 + k/4 for i, j, k in zip(sine, bass, sine2)]
+			# square = [vol if i > 0 else -vol if i < 0 else 0 for i in sine]
+			# mixSine = [mix * j + (1 - mix) * i for i, j in zip(sine, sine2)]
+			# mixSquare = [mix/2 * j + (1 - mix/2) * i for i, j in zip(sine, square)]
+			# mixChr = [i*5/12 + j/6 + k/6 + l/6 + m/12 for i, j, k, l, m in zip(sine, sine2, bass, chr1, chr2)]
 			specMix = [i*spec[2] + j*spec[4] + k*spec[0] + l*spec[1] + m*spec[3] for i, j, k, l, m in zip(sine, sine2, bass, chr1, chr2)]
 			samps = specMix
 			samps = np.array(samps, dtype=np.int8)
