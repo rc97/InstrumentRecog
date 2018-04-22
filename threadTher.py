@@ -3,7 +3,8 @@ import matplotlib
 import numpy as np
 import pyaudio as pa
 # from pydub import AudioSegment
-from matplotlib import pyplot as pltimport requests
+from matplotlib import pyplot as plt
+import requests
 
 sys.path.insert(0, 'lib')
 sys.path.insert(0, 'lib/x64')
@@ -89,8 +90,9 @@ class leapThread(threading.Thread):
 					y = pos[1]
 					z = pos[2]
 					vol = int(100 * (posInRange(y, VOL_LOW, VOL_HIGH)))
-					setVolume(vol)
+					# setVolume(vol)
 					bass = int(9 * posInRange(z, BAS_LOW, BAS_HIGH) - 9)
+					# setBass(bass)
 
 			if pitch > 0 and vol > 0:
 				spec = [10, 25 * (rz - .5) if rz > .6 else 0, 50, 30 * (rz - .5) if rz > .6 else 0, 30 + (200*(.5-rz) if rz < .5 else 0)]
@@ -100,11 +102,11 @@ class leapThread(threading.Thread):
 				freq = pitch / FS * 3.14
 				ts = int(FS / pitch * 12)
 				# print(freq, ts)
-				sine = [MAX_VOL * math.sin(i * freq) for i in range(ts)]
-				sine2 = [MAX_VOL * math.sin(2 * i * freq) for i in range(ts)]
-				bass = [MAX_VOL * math.sin(i * freq / 2) for i in range(ts)]
-				chr1 = [MAX_VOL * math.sin(i * freq * 2**(-5.0/12)) for i in range(ts)]
-				chr2 = [MAX_VOL * math.sin(i * freq * 2**(7.0/12)) for i in range(ts)]
+				sine = [vol * math.sin(i * freq) for i in range(ts)]
+				sine2 = [vol * math.sin(2 * i * freq) for i in range(ts)]
+				bass = [vol * math.sin(i * freq / 2) for i in range(ts)]
+				chr1 = [vol * math.sin(i * freq * 2**(-5.0/12)) for i in range(ts)]
+				chr2 = [vol * math.sin(i * freq * 2**(7.0/12)) for i in range(ts)]
 				specMix = [i*spec[2] + j*spec[4] + k*spec[0] + l*spec[1] + m*spec[3] for i, j, k, l, m in zip(sine, sine2, bass, chr1, chr2)]
 				samps = specMix
 				samps = np.array(samps, dtype=np.int8)
