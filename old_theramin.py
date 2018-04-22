@@ -1,6 +1,6 @@
-import sys, time, math, array, wave
+import sys, time, math
 import numpy as np
-import pyaudio as pa
+import sounddevice as sd
 from pydub import AudioSegment
 
 sys.path.insert(0, 'lib')
@@ -16,7 +16,7 @@ BAS_HIGH = 250
 PIT_LOW = -250
 PIT_HIGH = 250
 
-MAX_VOL = 2**7-1
+MAX_VOL = 3
 MAX_PIT = 880
 
 FS = 44100
@@ -33,20 +33,15 @@ def main():
 	# vRawData = vSound.raw_data
 	# vSamples = np.fromstring(vRawData, dtype=np.int16)[5000:25000]
 
-	# sd.default.samplerate = FS
+	sd.default.samplerate = FS
 	controller = Leap.Controller()
-	p = pa.PyAudio()
-	stream = p.open(format=16,
-				channels=1,
-                rate=FS,
-                output=True)
 	t = 0
 	while(1):
 		frame = controller.frame()
 		pitch = 0
 		vol = 0
 		bass = 0
-		mix = 0
+		typ = 0
 
 		# Get hands
 		for hand in frame.hands:
@@ -56,38 +51,36 @@ def main():
 				y = pos[1]
 				z = pos[2]
 				pitch = MAX_PIT * posInRange(x, PIT_LOW, PIT_HIGH)
-				mix = posInRange(z, BAS_LOW, BAS_HIGH)
+				typ = posInRange(z, BAS_LOW, BAS_HIGH)
 				# print(x, y, z)
 				print("Pitch", pitch)
-				print("Mix", mix)
+				print("Type", typ)
 			elif hand.is_left:
 				pos = hand.palm_position
 				x = pos[0]
 				y = pos[1]
 				z = pos[2]
-				vol = MAX_VOL * (posInRange(y, VOL_LOW, VOL_HIGH))
+				vol = MAX_VOL * (posInRange(y, VOL_LOW, VOL_HIGH))*3
 				bass = posInRange(z, BAS_LOW, BAS_HIGH)
 				# print(x, y, z)
 				print("Volume", vol)
 				print("Bass", bass)
 				print()
 
-		if pitch > 0:
-			freq = pitch / FS * 3.14
-			ts = int(FS / pitch)
-			pause = ts * 1.0 / FS
-			print(freq, ts, pause)
-			sine = [vol*math.sin(i * freq) for i in range(ts)]
-			sine2 = [vol*math.sin(2 * i * freq) for i in range(ts)]
-			square = [vol if i > 0 else -vol if i < 0 else 0 for i in sine]
-			mixSine = [mix * j + (1 - mix) * i for i, j in zip(sine, sine2)]
-			mixSquare = [mix/2 * j + (1 - mix/2) * i for i, j in zip(sine, square)]
-			# samps = sine if mix < .1 else sine2 if mix > .9 else mixSine
-			# samps = sine if mix < .5 else square
-			samps = mixSquare
-			samps = np.array(samps, dtype=np.int8)
-			sineStr = array.array('b', samps).tostring()
-			stream.write(sineStr)
+		sine = [vol*math.sin((i + t*FS) * pitch / FS * 3.14) for i in range(FS)]
+		sine2 = [vol*math.sin(2 * ((i + t*FS) * pitch / FS * 3.14)) for i in range(FS)]
+		mix = [typ * j + (1 - typ) * i for i, j in zip(sine, sine2)]
+		square = [vol*1.0 if i > 0 else -vol*1.0 if i < 0 else 0.0 for i in sine]
+		if typ > .9:
+			sd.play(sine2)
+		elif typ < .1:
+			sd.play(sine)
+		else:
+			sd.play(mix)
+		time.sleep(dt)
+		t += dt
+		if t >= 1:
+			t -= 1
 
 if __name__ == '__main__':
 	main()
