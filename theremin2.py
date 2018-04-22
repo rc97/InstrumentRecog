@@ -4,6 +4,7 @@ import numpy as np
 import pyaudio as pa
 from pydub import AudioSegment
 from matplotlib import pyplot as plt
+import matplotlib.animation as animation
 
 sys.path.insert(0, 'lib')
 sys.path.insert(0, 'lib/x64')
