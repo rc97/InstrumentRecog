@@ -27,19 +27,7 @@ dt = .01
 
 q = Queue.Queue()
 
-VIS_HIST = 20
-norm = matplotlib.colors.Normalize(vmin=0, vmax=MAX_PIT, clip=True)
-mapper = matplotlib.cm.ScalarMappable(norm=norm, cmap='plasma')
 
-fig, ax = plt.subplots()
-ax.set_facecolor('black')
-ax.set_ylim(0, VOL_HIGH+50)
-plt.show(block=False)
-
-ind = np.arange(1, 1+VIS_HIST)
-pitchHist = np.zeros(VIS_HIST) # values from 0 to 880
-volHist = np.zeros(VIS_HIST)
-bars = plt.bar(ind, volHist)
 
 def posInRange(pos, low, high):
 	val = (pos - low) / (high - low)
@@ -105,6 +93,7 @@ class leapThread(threading.Thread):
 				sineStr = array.array('b', samps).tostring()
 				self.stream.write(sineStr)
 
+			print('QUEUE', pitch, vol)
 			q.put((pitch, vol))
 
 
@@ -112,22 +101,36 @@ def main():
 	thread1 = leapThread(1, "Thread-1", 1)
 	thread1.start()
 
+	VIS_HIST = 20
+	norm = matplotlib.colors.Normalize(vmin=0, vmax=MAX_PIT, clip=True)
+	mapper = matplotlib.cm.ScalarMappable(norm=norm, cmap='plasma')
+
+	fig, ax = plt.subplots()
+	ax.set_facecolor('black')
+	ax.set_ylim(0, VOL_HIGH+50)
+	plt.show(block=False)
+
+	ind = np.arange(1, 1+VIS_HIST)
+	pitchHist = np.zeros(VIS_HIST)
+	volHist = np.zeros(VIS_HIST)
+	bars = plt.bar(ind, volHist)
+
 	while(1):
-		try:
-			(pitch, vol) = q.get()
-		except Queue.Empty:
-			time.sleep(.001)
-			continue
-		print(pitch, vol)
+		while not q.empty():
+			(pitch, vol) = q.get(True)
+
+		print("PITCH", pitch, vol)
 		pitchHist[0:-1] = pitchHist[1:]
 		pitchHist[-1] = pitch
 		volHist[0:-1] = volHist[1:]
 		volHist[-1] = vol
 		for i in range(VIS_HIST):
-			print(bars[i])
-			print(volHist[i])
+			# print(bars[i])
+			# print(volHist[i])
 			bars[i].set_height(volHist[i])
 			bars[i].set_facecolor(mapper.to_rgba(pitchHist[i]))
+
+		fig.canvas.draw_idle()
 		try:
 			fig.canvas.flush_events()
 		except NotImplementedError:
