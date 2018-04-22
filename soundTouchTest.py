@@ -5,11 +5,12 @@ from libsoundtouch.utils import Source, Type
 
 devices = discover_devices(timeout=10)
 
+print(len(devices))
 
 for device in devices:
-	print(device.config.name + " - " + device.config.type + device.config.host)
+	print(device.config.name + " - " + device.config.type + device.host)
 
-device = soundtouch_device('192.168.1.72')
+device = soundtouch_device('192.168.43.155')
 
 # Config object
 print(device.config.name)

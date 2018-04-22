@@ -10,7 +10,7 @@ sys.path.insert(0, 'lib')
 sys.path.insert(0, 'lib/x64')
 import Leap
 
-VOL_LOW = 50
+VOL_LOW = 0
 VOL_HIGH = 500
 
 BAS_LOW = -250
@@ -29,7 +29,7 @@ dt = .01
 pitch = 0
 vol = 0
 
-IP = '192.168.1.72'
+IP = '192.168.43.155'
 
 BASE_URL = 'http://' + IP + ':8090'
 BASS_MIN = -9
@@ -45,10 +45,34 @@ def setVolume(vol):
 def setBass(bass):
 	bass = BASS_MIN if bass < BASS_MIN else BASS_MAX if bass > BASS_MAX else bass
 	r = requests.post(BASE_URL+'/bass', '<bass>%s</bass>' % bass)
-
 def posInRange(pos, low, high):
 	val = (pos - low) / (high - low)
 	return 0 if val < 0 else 1 if val > 1 else val
+
+class leftThread(threading.Thread):
+	def __init__(self, threadID, name, counter):
+		threading.Thread.__init__(self)
+		self.threadID = threadID
+		self.name = name
+		self.counter = counter
+		self.controller = Leap.Controller()
+	def run(self):
+		while(1):
+			frame = self.controller.frame()
+			mvol = 0
+			bass = 0
+
+			# Get hands
+			for hand in frame.hands:
+				if hand.is_left:
+					pos = hand.palm_position
+					x = pos[0]
+					y = pos[1]
+					z = pos[2]
+					mvol = int(10 * (posInRange(y, VOL_LOW, VOL_HIGH)))
+					setVolume(40 + mvol)
+					bass = int(9 * posInRange(z, BAS_LOW, BAS_HIGH) - 9)
+					setBass(bass)
 
 class leapThread(threading.Thread):
 	def __init__(self, threadID, name, counter):
@@ -68,7 +92,6 @@ class leapThread(threading.Thread):
 			frame = self.controller.frame()
 			pitch = 0
 			vol = 0
-			bass = 0
 			mix = 0
 			ry = 0
 			rz = 0
@@ -89,10 +112,7 @@ class leapThread(threading.Thread):
 					x = pos[0]
 					y = pos[1]
 					z = pos[2]
-					vol = int(100 * (posInRange(y, VOL_LOW, VOL_HIGH)))
-					# setVolume(vol)
-					bass = int(9 * posInRange(z, BAS_LOW, BAS_HIGH) - 9)
-					# setBass(bass)
+					vol = MAX_VOL * (posInRange(y, VOL_LOW, VOL_HIGH))
 
 			if pitch > 0 and vol > 0:
 				spec = [10, 25 * (rz - .5) if rz > .6 else 0, 50, 30 * (rz - .5) if rz > .6 else 0, 30 + (200*(.5-rz) if rz < .5 else 0)]
@@ -120,14 +140,17 @@ class leapThread(threading.Thread):
 def main():
 	thread1 = leapThread(1, "Thread-1", 1)
 	thread1.start()
+	thread2 = leftThread(1, "t2", 1)
+	thread2.start()
 
-	VIS_HIST = 20
+	VIS_HIST = 40
 	norm = matplotlib.colors.Normalize(vmin=0, vmax=MAX_PIT, clip=True)
 	mapper = matplotlib.cm.ScalarMappable(norm=norm, cmap='plasma')
 
 	fig, ax = plt.subplots()
+	fig.patch.set_facecolor('black')
 	ax.set_facecolor('black')
-	ax.set_ylim(0, MAX_VOL+50)
+	ax.set_ylim(0, MAX_VOL+5)
 	plt.show(block=False)
 
 	ind = np.arange(1, 1+VIS_HIST)
@@ -159,6 +182,7 @@ def main():
 
 	# time.sleep(10)
 	thread1.join()
+	thread2.join()
 
 if __name__ == '__main__':
 	main()
