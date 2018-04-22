@@ -24,6 +24,21 @@ FS = 44100
 
 dt = .01
 
+VIS_HIST = 20
+norm = matplotlib.colors.Normalize(vmin=0, vmax=MAX_PIT, clip=True)
+mapper = matplotlib.cm.ScalarMappable(norm=norm, cmap='plasma')
+
+fig, ax = plt.subplots()
+ax.set_facecolor('black')
+ax.set_ylim(0, 650)
+plt.show(block=False)
+
+ind = np.arange(1, 1+VIS_HIST)
+pitchHist = np.zeros(VIS_HIST) # values from 0 to 880
+volHist = np.zeros(VIS_HIST)
+bars = plt.bar(ind, volHist)
+
+
 def posInRange(pos, low, high):
 	val = (pos - low) / (high - low)
 	return 0 if val < 0 else 1 if val > 1 else val
@@ -90,6 +105,20 @@ def main():
 			sineStr = array.array('b', samps).tostring()
 			stream.write(sineStr)
 
+		pitchHist[0:-1] = pitchHist[1:]
+		pitchHist[-1] = pitch
+		volHist[0:-1] = volHist[1:]
+		volHist[-1] = vol
+		for i in range(VIS_HIST):
+			print(bars[i])
+			print(volHist[i])
+			bars[i].set_height(volHist[i])
+			bars[i].set_facecolor(mapper.to_rgba(pitchHist[i]))
+		fig.canvas.draw_idle()
+		try:
+			fig.canvas.flush_events()
+		except NotImplementedError:
+			pass
 
 if __name__ == '__main__':
 	main()
