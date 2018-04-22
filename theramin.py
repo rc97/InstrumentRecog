@@ -1,4 +1,5 @@
 import sys, time, math, array, wave
+import matplotlib
 import numpy as np
 import pyaudio as pa
 from pydub import AudioSegment
