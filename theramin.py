@@ -30,7 +30,7 @@ mapper = matplotlib.cm.ScalarMappable(norm=norm, cmap='plasma')
 
 fig, ax = plt.subplots()
 ax.set_facecolor('black')
-ax.set_ylim(0, 650)
+ax.set_ylim(0, VOL_HIGH+50)
 plt.show(block=False)
 
 ind = np.arange(1, 1+VIS_HIST)
