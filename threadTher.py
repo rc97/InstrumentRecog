@@ -3,7 +3,7 @@ import matplotlib
 import numpy as np
 import pyaudio as pa
 # from pydub import AudioSegment
-from matplotlib import pyplot as plt
+from matplotlib import pyplot as pltimport requests
 
 sys.path.insert(0, 'lib')
 sys.path.insert(0, 'lib/x64')
@@ -25,12 +25,25 @@ FS = 96000
 
 dt = .01
 
-q = Queue.Queue()
-
 pitch = 0
 vol = 0
 
+IP = '192.168.1.72'
 
+BASE_URL = 'http://' + IP + ':8090'
+BASS_MIN = -9
+BASS_MAX = 0
+VOL_MAX = 100
+VOL_MIN = 0
+
+
+def setVolume(vol):
+	vol = VOL_MIN if vol < VOL_MIN else VOL_MAX if vol > VOL_MAX else vol
+	r = requests.post(BASE_URL+'/volume', '<volume>%s</volume>' % vol)
+
+def setBass(bass):
+	bass = BASS_MIN if bass < BASS_MIN else BASS_MAX if bass > BASS_MAX else bass
+	r = requests.post(BASE_URL+'/bass', '<bass>%s</bass>' % bass)
 
 def posInRange(pos, low, high):
 	val = (pos - low) / (high - low)
@@ -75,8 +88,9 @@ class leapThread(threading.Thread):
 					x = pos[0]
 					y = pos[1]
 					z = pos[2]
-					vol = 100 * (posInRange(y, VOL_LOW, VOL_HIGH))
-					bass = posInRange(z, BAS_LOW, BAS_HIGH)
+					vol = int(100 * (posInRange(y, VOL_LOW, VOL_HIGH)))
+					setVolume(vol)
+					bass = int(9 * posInRange(z, BAS_LOW, BAS_HIGH) - 9)
 
 			if pitch > 0 and vol > 0:
 				spec = [10, 25 * (rz - .5) if rz > .6 else 0, 50, 30 * (rz - .5) if rz > .6 else 0, 30 + (200*(.5-rz) if rz < .5 else 0)]
