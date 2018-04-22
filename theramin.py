@@ -28,6 +28,11 @@ def posInRange(pos, low, high):
 	return 0 if val < 0 else 1 if val > 1 else val
 
 def main():
+
+	# vSound = AudioSegment.from_mp3("v1.mp3")
+	# vRawData = vSound.raw_data
+	# vSamples = np.fromstring(vRawData, dtype=np.int16)[5000:25000]
+
 	sd.default.samplerate = FS
 	controller = Leap.Controller()
 	t = 0
@@ -36,6 +41,7 @@ def main():
 		pitch = 0
 		vol = 0
 		bass = 0
+		typ = 0
 
 		# Get hands
 		for hand in frame.hands:
@@ -45,8 +51,10 @@ def main():
 				y = pos[1]
 				z = pos[2]
 				pitch = MAX_PIT * posInRange(x, PIT_LOW, PIT_HIGH)
+				typ = posInRange(z, BAS_LOW, BAS_HIGH)
 				# print(x, y, z)
 				print("Pitch", pitch)
+				print("Type", typ)
 			elif hand.is_left:
 				pos = hand.palm_position
 				x = pos[0]
@@ -59,8 +67,16 @@ def main():
 				print("Bass", bass)
 				print()
 
-		audio = [vol*math.sin((i + t*FS) * pitch / FS * 3.14) for i in range(FS)]
-		sd.play(audio)
+		sine = [vol*math.sin((i + t*FS) * pitch / FS * 3.14) for i in range(FS)]
+		sine2 = [vol*math.sin(2 * ((i + t*FS) * pitch / FS * 3.14)) for i in range(FS)]
+		mix = [typ * j + (1 - typ) * i for i, j in zip(sine, sine2)]
+		square = [vol*1.0 if i > 0 else -vol*1.0 if i < 0 else 0.0 for i in sine]
+		if typ > .9:
+			sd.play(sine2)
+		elif typ < .1:
+			sd.play(sine)
+		else:
+			sd.play(mix)
 		time.sleep(dt)
 		t += dt
 		if t >= 1:
