@@ -42,7 +42,6 @@ def animate(i):
 		bars[i].set_facecolor(mapper.to_rgba(pitchHist[i]))
 
 # call the animator.  blit=True means only re-draw the parts that have changed.
-anim = animation.FuncAnimation(fig, animate,
-                               frames=100, interval=100, blit=False)
+anim = animation.FuncAnimation(fig, animate, frames=100, interval=100, blit=False)
 
 plt.show()

@@ -47,7 +47,7 @@ while (True):
 	# has a chance.
 	# For most of the GUI backends this adds an event to the queue
 	# of the GUI frameworks event loop.
-	fig.canvas.draw_idle()
+	# fig.canvas.draw_idle()
 	try:
 		fig.canvas.flush_events()
 	except NotImplementedError:

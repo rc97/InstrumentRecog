@@ -2,15 +2,16 @@ import sys, time, math, array, wave
 import matplotlib
 import numpy as np
 import pyaudio as pa
-# from pydub import AudioSegment
+from pydub import AudioSegment
 from matplotlib import pyplot as plt
+import matplotlib.animation as animation
 
 sys.path.insert(0, 'lib')
 sys.path.insert(0, 'lib/x64')
 import Leap
 
 VOL_LOW = 0
-VOL_HIGH = 500
+VOL_HIGH = 600
 
 BAS_LOW = -250
 BAS_HIGH = 250
@@ -25,19 +26,28 @@ FS = 96000
 
 dt = .01
 
-# VIS_HIST = 20
-# norm = matplotlib.colors.Normalize(vmin=0, vmax=MAX_PIT, clip=True)
-# mapper = matplotlib.cm.ScalarMappable(norm=norm, cmap='plasma')
+VIS_HIST = 20
+norm = matplotlib.colors.Normalize(vmin=0, vmax=MAX_PIT, clip=True)
+mapper = matplotlib.cm.ScalarMappable(norm=norm, cmap='plasma')
 
-# fig, ax = plt.subplots()
-# ax.set_facecolor('black')
-# ax.set_ylim(0, VOL_HIGH+50)
-# plt.show(block=False)
+fig, ax = plt.subplots()
+ax.set_facecolor('black')
+ax.set_ylim(0, VOL_HIGH+50)
+plt.show(block=False)
 
-# ind = np.arange(1, 1+VIS_HIST)
-# pitchHist = np.zeros(VIS_HIST) # values from 0 to 880
-# volHist = np.zeros(VIS_HIST)
-# bars = plt.bar(ind, volHist)
+ind = np.arange(1, 1+VIS_HIST)
+pitchHist = np.zeros(VIS_HIST) # values from 0 to 880
+volHist = np.zeros(VIS_HIST)
+bars = plt.bar(ind, volHist)
+
+
+def animate(i):
+	for i in range(VIS_HIST):
+		print(bars)
+		print(bars[i])
+		print(volHist[i])
+		bars[i].set_height(volHist[i])
+		bars[i].set_facecolor(mapper.to_rgba(pitchHist[i]))
 
 
 def posInRange(pos, low, high):
@@ -57,7 +67,13 @@ def main():
 				channels=1,
                 rate=FS,
                 output=True)
-	# t = 0
+	t = 0
+
+	anim = animation.FuncAnimation(fig, animate, interval=2, blit=False)
+
+	plt.show(block=False)
+
+	
 	while(1):
 		frame = controller.frame()
 		pitch = 0
@@ -107,31 +123,22 @@ def main():
 			bass = [vol*math.sin(i * freq / 2) for i in range(ts)]
 			chr1 = [vol*math.sin(i * freq * 2**(-5.0/12)) for i in range(ts)]
 			chr2 = [vol*math.sin(i * freq * 2**(7.0/12)) for i in range(ts)]
-			# sineBass = [i/2 + j/4 + k/4 for i, j, k in zip(sine, bass, sine2)]
-			# square = [vol if i > 0 else -vol if i < 0 else 0 for i in sine]
-			# mixSine = [mix * j + (1 - mix) * i for i, j in zip(sine, sine2)]
-			# mixSquare = [mix/2 * j + (1 - mix/2) * i for i, j in zip(sine, square)]
-			# mixChr = [i*5/12 + j/6 + k/6 + l/6 + m/12 for i, j, k, l, m in zip(sine, sine2, bass, chr1, chr2)]
+			sineBass = [i/2 + j/4 + k/4 for i, j, k in zip(sine, bass, sine2)]
+			square = [vol if i > 0 else -vol if i < 0 else 0 for i in sine]
+			mixSine = [mix * j + (1 - mix) * i for i, j in zip(sine, sine2)]
+			mixSquare = [mix/2 * j + (1 - mix/2) * i for i, j in zip(sine, square)]
+			mixChr = [i*5/12 + j/6 + k/6 + l/6 + m/12 for i, j, k, l, m in zip(sine, sine2, bass, chr1, chr2)]
 			specMix = [i*spec[2] + j*spec[4] + k*spec[0] + l*spec[1] + m*spec[3] for i, j, k, l, m in zip(sine, sine2, bass, chr1, chr2)]
 			samps = specMix
 			samps = np.array(samps, dtype=np.int8)
 			sineStr = array.array('b', samps).tostring()
 			stream.write(sineStr)
 
-		# pitchHist[0:-1] = pitchHist[1:]
-		# pitchHist[-1] = pitch
-		# volHist[0:-1] = volHist[1:]
-		# volHist[-1] = vol
-		# for i in range(VIS_HIST):
-		# 	print(bars[i])
-		# 	print(volHist[i])
-		# 	bars[i].set_height(volHist[i])
-		# 	bars[i].set_facecolor(mapper.to_rgba(pitchHist[i]))
-		# fig.canvas.draw_idle()
-		# try:
-		# 	fig.canvas.flush_events()
-		# except NotImplementedError:
-		# 	pass
+		pitchHist[0:-1] = pitchHist[1:]
+		pitchHist[-1] = pitch
+		volHist[0:-1] = volHist[1:]
+		volHist[-1] = vol
+
 
 if __name__ == '__main__':
 	main()
