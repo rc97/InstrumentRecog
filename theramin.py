@@ -2,6 +2,7 @@ import sys, time, math, array, wave
 import numpy as np
 import pyaudio as pa
 from pydub import AudioSegment
+from matplotlib import pyplot as plt
 
 sys.path.insert(0, 'lib')
 sys.path.insert(0, 'lib/x64')
@@ -74,20 +75,21 @@ def main():
 
 		if pitch > 0:
 			freq = pitch / FS * 3.14
-			ts = int(FS / pitch)
+			ts = int(FS / pitch * 4)
 			pause = ts * 1.0 / FS
 			print(freq, ts, pause)
 			sine = [vol*math.sin(i * freq) for i in range(ts)]
 			sine2 = [vol*math.sin(2 * i * freq) for i in range(ts)]
+			bass = [vol*math.sin(i * freq / 2) for i in range(ts)]
+			sineBass = [i/2 + j/4 + k/4 for i, j, k in zip(sine, bass, sine2)]
 			square = [vol if i > 0 else -vol if i < 0 else 0 for i in sine]
 			mixSine = [mix * j + (1 - mix) * i for i, j in zip(sine, sine2)]
 			mixSquare = [mix/2 * j + (1 - mix/2) * i for i, j in zip(sine, square)]
-			# samps = sine if mix < .1 else sine2 if mix > .9 else mixSine
-			# samps = sine if mix < .5 else square
-			samps = mixSquare
+			samps = sineBass
 			samps = np.array(samps, dtype=np.int8)
 			sineStr = array.array('b', samps).tostring()
 			stream.write(sineStr)
+
 
 if __name__ == '__main__':
 	main()
