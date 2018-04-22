@@ -9,7 +9,7 @@ sys.path.insert(0, 'lib')
 sys.path.insert(0, 'lib/x64')
 import Leap
 
-VOL_LOW = 0
+VOL_LOW = 50
 VOL_HIGH = 500
 
 BAS_LOW = -250
@@ -26,6 +26,9 @@ FS = 96000
 dt = .01
 
 q = Queue.Queue()
+
+pitch = 0
+vol = 0
 
 
 
@@ -46,6 +49,7 @@ class leapThread(threading.Thread):
 				rate=FS,
 				output=True)
 	def run(self):
+		global pitch, vol
 		while(1):
 			frame = self.controller.frame()
 			pitch = 0
@@ -71,30 +75,30 @@ class leapThread(threading.Thread):
 					x = pos[0]
 					y = pos[1]
 					z = pos[2]
-					vol = MAX_VOL * (posInRange(y, VOL_LOW, VOL_HIGH))
+					vol = 100 * (posInRange(y, VOL_LOW, VOL_HIGH))
 					bass = posInRange(z, BAS_LOW, BAS_HIGH)
 
-			if pitch > 0:
-				spec = [15, 25 * (rz - .6) if rz > .6 else 0, 50 * ry - (20*(.5-rz) if rz < .5 else 0), 30 * (rz - .6) if rz > .6 else 0, 20 + (80*(.5-rz) if rz < .5 else 0)]
+			if pitch > 0 and vol > 0:
+				spec = [10, 25 * (rz - .5) if rz > .6 else 0, 50, 30 * (rz - .5) if rz > .6 else 0, 30 + (200*(.5-rz) if rz < .5 else 0)]
 				sumSpec = sum(spec)
 				spec = [i*1.0/sumSpec for i in spec]
 				# print(spec)
 				freq = pitch / FS * 3.14
 				ts = int(FS / pitch * 12)
 				# print(freq, ts)
-				sine = [vol*math.sin(i * freq) for i in range(ts)]
-				sine2 = [vol*math.sin(2 * i * freq) for i in range(ts)]
-				bass = [vol*math.sin(i * freq / 2) for i in range(ts)]
-				chr1 = [vol*math.sin(i * freq * 2**(-5.0/12)) for i in range(ts)]
-				chr2 = [vol*math.sin(i * freq * 2**(7.0/12)) for i in range(ts)]
+				sine = [MAX_VOL * math.sin(i * freq) for i in range(ts)]
+				sine2 = [MAX_VOL * math.sin(2 * i * freq) for i in range(ts)]
+				bass = [MAX_VOL * math.sin(i * freq / 2) for i in range(ts)]
+				chr1 = [MAX_VOL * math.sin(i * freq * 2**(-5.0/12)) for i in range(ts)]
+				chr2 = [MAX_VOL * math.sin(i * freq * 2**(7.0/12)) for i in range(ts)]
 				specMix = [i*spec[2] + j*spec[4] + k*spec[0] + l*spec[1] + m*spec[3] for i, j, k, l, m in zip(sine, sine2, bass, chr1, chr2)]
 				samps = specMix
 				samps = np.array(samps, dtype=np.int8)
 				sineStr = array.array('b', samps).tostring()
 				self.stream.write(sineStr)
 
-			print('QUEUE', pitch, vol)
-			q.put((pitch, vol))
+			# print('QUEUE', pitch, vol)
+			# q.put((pitch, vol))
 
 
 def main():
@@ -107,7 +111,7 @@ def main():
 
 	fig, ax = plt.subplots()
 	ax.set_facecolor('black')
-	ax.set_ylim(0, VOL_HIGH+50)
+	ax.set_ylim(0, MAX_VOL+50)
 	plt.show(block=False)
 
 	ind = np.arange(1, 1+VIS_HIST)
@@ -116,10 +120,10 @@ def main():
 	bars = plt.bar(ind, volHist)
 
 	while(1):
-		while not q.empty():
-			(pitch, vol) = q.get(True)
+		# while not q.empty():
+		# 	(pitch, vol) = q.get(True)
 
-		print("PITCH", pitch, vol)
+		# print("PITCH", pitch, vol)
 		pitchHist[0:-1] = pitchHist[1:]
 		pitchHist[-1] = pitch
 		volHist[0:-1] = volHist[1:]
@@ -135,6 +139,7 @@ def main():
 			fig.canvas.flush_events()
 		except NotImplementedError:
 			pass	
+		time.sleep(.01)
 
 	# time.sleep(10)
 	thread1.join()
