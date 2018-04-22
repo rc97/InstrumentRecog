@@ -14,13 +14,13 @@ VOL_HIGH = 600
 BAS_LOW = -250
 BAS_HIGH = 250
 
-PIT_LOW = -250
+PIT_LOW = -100
 PIT_HIGH = 250
 
 MAX_VOL = 2**7-1
-MAX_PIT = 880
+MAX_PIT = 1670
 
-FS = 44100
+FS = 96000
 
 dt = .01
 
@@ -48,6 +48,8 @@ def main():
 		vol = 0
 		bass = 0
 		mix = 0
+		ry = 0
+		rz = 0
 
 		# Get hands
 		for hand in frame.hands:
@@ -57,10 +59,12 @@ def main():
 				y = pos[1]
 				z = pos[2]
 				pitch = MAX_PIT * posInRange(x, PIT_LOW, PIT_HIGH)
+				ry = posInRange(y, VOL_LOW, VOL_HIGH)
 				mix = posInRange(z, BAS_LOW, BAS_HIGH)
+				rz = posInRange(z, BAS_LOW, BAS_HIGH)
 				# print(x, y, z)
-				print("Pitch", pitch)
-				print("Mix", mix)
+				# print("Pitch", pitch)
+				# print("Mix", mix)
 			elif hand.is_left:
 				pos = hand.palm_position
 				x = pos[0]
@@ -69,23 +73,31 @@ def main():
 				vol = MAX_VOL * (posInRange(y, VOL_LOW, VOL_HIGH))
 				bass = posInRange(z, BAS_LOW, BAS_HIGH)
 				# print(x, y, z)
-				print("Volume", vol)
-				print("Bass", bass)
-				print()
+				# print("Volume", vol)
+				# print("Bass", bass)
+				# print()
 
 		if pitch > 0:
+			spec = [15, 25 * (rz - .6) if rz > .6 else 0, 50 * ry - (20*(.5-rz) if rz < .5 else 0), 30 * (rz - .6) if rz > .6 else 0, 20 + (80*(.5-rz) if rz < .5 else 0)]
+			sumSpec = sum(spec)
+			spec = [i*1.0/sumSpec for i in spec]
+			print(spec)
 			freq = pitch / FS * 3.14
-			ts = int(FS / pitch * 4)
+			ts = int(FS / pitch * 12)
 			pause = ts * 1.0 / FS
 			print(freq, ts, pause)
 			sine = [vol*math.sin(i * freq) for i in range(ts)]
 			sine2 = [vol*math.sin(2 * i * freq) for i in range(ts)]
 			bass = [vol*math.sin(i * freq / 2) for i in range(ts)]
+			chr1 = [vol*math.sin(i * freq * 2**(-5.0/12)) for i in range(ts)]
+			chr2 = [vol*math.sin(i * freq * 2**(7.0/12)) for i in range(ts)]
 			sineBass = [i/2 + j/4 + k/4 for i, j, k in zip(sine, bass, sine2)]
 			square = [vol if i > 0 else -vol if i < 0 else 0 for i in sine]
 			mixSine = [mix * j + (1 - mix) * i for i, j in zip(sine, sine2)]
 			mixSquare = [mix/2 * j + (1 - mix/2) * i for i, j in zip(sine, square)]
-			samps = sineBass
+			mixChr = [i*5/12 + j/6 + k/6 + l/6 + m/12 for i, j, k, l, m in zip(sine, sine2, bass, chr1, chr2)]
+			specMix = [i*spec[2] + j*spec[4] + k*spec[0] + l*spec[1] + m*spec[3] for i, j, k, l, m in zip(sine, sine2, bass, chr1, chr2)]
+			samps = specMix
 			samps = np.array(samps, dtype=np.int8)
 			sineStr = array.array('b', samps).tostring()
 			stream.write(sineStr)
